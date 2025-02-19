@@ -1,0 +1,47 @@
+#Palau Temperature R Script
+#Plot Palau temps measured with hobo loggers at Ulong Channel and Ngermid Bay, as well as NOAA seasurface temperature data from Palau. Note: the hobo at Ulong didn't record data in parts of 2020 and 2021.
+
+#Load packages
+library(ggplot2)
+library(ggpubr)
+library(zoo)
+library(ggpubr)
+library(scales)
+
+#read in data 
+dat<-read.csv("Palau_hobo_NOAA_temps.2013.2022.csv", header = TRUE)
+
+#format dates correctly
+dat$date <- as.Date(dat$date, format="%m/%d/%y")
+dat$date <- ifelse(dat$date < as.Date("2000-01-01"), 
+                   format(dat$date, "20%y-%m-%d"), 
+                   format(dat$date, "%Y-%m-%d"))
+dat$date <- as.Date(dat$date)
+
+dat$temp<-as.numeric(dat$temp)
+
+
+#  Get months and years in seperate columns
+dat$Month <- format(dat$date, format="%m")
+dat$Year <- format(dat$date, format="%Y")
+
+#  Aggregate dat on months and year and site and get mean on new dat2
+dat2<-aggregate( temp ~ Month + Year + site , dat , mean )
+
+#create column showing month and year
+dat2$yymm <- as.Date(paste(dat2$Year, dat2$Month, "01", sep = "-"))
+
+#save doc for supplemental table S5
+write.csv(dat2, file = "Table_S5.csv", row.names = FALSE)
+
+tempgraph <- ggplot(data = dat2, aes(x = yymm, y = temp, colour = site, linetype = site)) +
+  geom_line(size = 1) +  # Ensure lines are visible
+  theme_bw() +
+  labs(title="Raw Temperature Data", y="Temperature (°C)", x="Year") +
+  scale_x_date(labels = date_format("%Y"), date_breaks = "1 year") +  
+  scale_y_continuous(limits=c(27, 32)) +
+  scale_linetype_manual(values = c("NOAA" = "dotted", "Ngermid" = "solid", "Ulong" = "solid")) +  # Custom dashed NOAA line
+  scale_color_manual(values = c("NOAA" = "#333333", "Ngermid" = "#333333", "Ulong" = "#999999"))+
+  theme_pubr()
+
+tempgraph
