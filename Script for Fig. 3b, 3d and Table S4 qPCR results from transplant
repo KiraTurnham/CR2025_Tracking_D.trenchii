@@ -1,0 +1,74 @@
+```{r}
+#### percent change in D. trenchii transplanted offshore ####
+# Make faceted boxplots per host species showing change in relative abundances of D. trenchii during reciprocal transplantation inshore/offshore Palau.
+
+# analyze the average relative abundances using Bonferroni corrected Kruskal–Wallis tests in R. "For taxonomic groups where the Kruskal–Wallis test resulted in a rejected null hypothesis, Bonferroni corrected post-hoc Dunn tests were performed to identify which timepoint comparisons for each taxonomic order were significantly different"
+
+rm(list = ls())
+knitr::opts_chunk$set(echo = TRUE)
+setwd("/Users/kiraturnham/Documents/Chapter 2 qpcr/github/")
+
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(readr)
+library(rstatix)
+
+# calculate cell number from CT values based on standard curve
+process_data <- function(data, C_CT_col, D_CT_col) {
+  data %>%
+    mutate(
+      C_cell = (10^((!!sym(C_CT_col) - 20.947) / -3.6424)) * 4000000,  # Cladocopium
+      D_cell = (10^((!!sym(D_CT_col) - 19.278) / -3.6406)) * 4000000,  # Durusdinium
+      C_cell = ifelse(!!sym(C_CT_col) < 31, C_cell, 0),
+      D_cell = ifelse(!!sym(D_CT_col) < 31, D_cell, 0),
+      prop_d = D_cell / (D_cell + C_cell),
+      prop_d = ifelse(is.nan(prop_d), NA, prop_d),
+      prop_d = case_when(
+        C_cell == 0 ~ 1,  # If no Cladocopium, 100% Durusdinium
+        D_cell == 0 ~ 0,  # If no Durusdinium, 0% Durusdinium
+        TRUE ~ prop_d
+      ),
+      perc_d = prop_d * 100  # Convert proportion to percentage
+    )
+}
+
+# Load and process both transplant datasets
+in_to_off <- read.csv('in_to_off_CT.csv', header = TRUE) %>%
+  process_data("C_CT", "D_CT")
+off_to_in <- read.csv('off_to_in_CT.csv', header = TRUE) %>%
+  process_data("Cladocopium_CT", "Dtrenchii_CT")
+
+# Combine the datasets by adding a new column to distinguish between them
+combined_data <- bind_rows(
+  off_to_in %>% mutate(Transplant = "Offshore to Inshore"), 
+  in_to_off %>% mutate(Transplant = "Inshore to Offshore")
+)
+
+# Save the combined dataset to a CSV file
+write_csv(combined_data, "Table_S4_Transplant_qPCR_data.csv")
+
+# Reorder the 'Timepoint' factor in combined_data
+combined_data$Timepoint <- factor(combined_data$Timepoint, levels = c("T0", "6M", "1Y", "2Y"))
+
+# Visualization for in_to_off
+ggplot(in_to_off, aes(x = Timepoint, y = perc_d, fill = Host_genus)) + 
+  geom_boxplot() + 
+  geom_jitter(position = position_jitter(width = 0.2, height = 0), alpha = 0.5) +
+  facet_wrap(~Host_genus) + 
+  labs(y = bquote('Relative abundance of D. trenchii'), x = "Time") +
+  theme_pubr(base_size = 20) +
+  border("black") +
+  ylim(0, 120) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# Visualization for off_to_in
+ggplot(off_to_in, aes(x = Timepoint, y = perc_d, fill = Host_genus)) + 
+  geom_boxplot() + 
+  geom_jitter(position = position_jitter(width = 0.2, height = 0), alpha = 0.5) +
+  facet_wrap(~Host_genus) + 
+  labs(y = bquote('Relative abundance of D. trenchii'), x = "Time") +
+  theme_pubr(base_size = 20) +
+  border("black") +
+  ylim(0, 120) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
