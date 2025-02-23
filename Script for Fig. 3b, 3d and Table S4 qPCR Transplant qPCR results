@@ -2,17 +2,14 @@
 #### percent change in D. trenchii transplanted offshore ####
 # Make faceted boxplots per host species showing change in relative abundances of D. trenchii during reciprocal transplantation inshore/offshore Palau.
 
-# analyze the average relative abundances using Bonferroni corrected Kruskal–Wallis tests in R. "For taxonomic groups where the Kruskal–Wallis test resulted in a rejected null hypothesis, Bonferroni corrected post-hoc Dunn tests were performed to identify which timepoint comparisons for each taxonomic order were significantly different"
-
-rm(list = ls())
-knitr::opts_chunk$set(echo = TRUE)
-setwd("/Users/kiraturnham/Documents/Chapter 2 qpcr/github/")
-
 library(ggplot2)
 library(dplyr)
 library(tidyr)
 library(readr)
 library(rstatix)
+
+in_to_off <- read.csv('in_to_off_CT.csv', header = TRUE)
+off_to_in <- read.csv('off_to_in_CT.csv', header = TRUE)
 
 # calculate cell number from CT values based on standard curve
 process_data <- function(data, C_CT_col, D_CT_col) {
@@ -72,3 +69,5 @@ ggplot(off_to_in, aes(x = Timepoint, y = perc_d, fill = Host_genus)) +
   border("black") +
   ylim(0, 120) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
