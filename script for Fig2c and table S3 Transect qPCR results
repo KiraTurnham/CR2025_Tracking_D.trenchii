@@ -4,7 +4,7 @@ library(tidyr)
 library(readr)
 
 # Load transect data
-data <- read.csv("transect_CT.csv")
+data <- read.csv("Palau_transect_qPCR_CT_resuls.csv")
 
 # Convert qpcr CT values to approximate cell numbers using standard curve equations
 # Cladocopium
