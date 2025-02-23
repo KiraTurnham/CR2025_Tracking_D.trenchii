@@ -1,0 +1,39 @@
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(readr)
+
+# Load transect data
+data <- read.csv("transect_CT.csv")
+
+# Convert qpcr CT values to approximate cell numbers using standard curve equations
+# Cladocopium
+data$C_cells <- (10^((data$C_CT - 20.947) / -3.6424)) * 4000000 
+
+# Durusdinium
+data$D_cells <- (10^((data$D_CT - 19.278) / -3.6406)) * 4000000 
+
+# Apply CT threshold (31) and remove values where CT > 31
+data$C_cells <- ifelse(!is.na(data$C_CT) & data$C_CT < 31, data$C_cells, 0)  # Filter Cladocopium
+data$D_cells <- ifelse(!is.na(data$D_CT) & data$D_CT < 31, data$D_cells, 0)  # Filter Durusdinium
+
+# Calculate relative Durusdinium proportion
+data$prop_d <- data$D_cells / (data$D_cells + data$C_cells)
+
+# Replace NaN (produced by 0/0) with NA
+data$prop_d <- ifelse(is.nan(data$prop_d), NA, data$prop_d)
+
+#find relative Durusdinium:Cladocopium percent
+data$perc_d <- (data$prop_d)*100
+
+#create supplemental table s3
+write_csv(data, file = "Table_S3_relative_abundance_transect.csv")
+
+# make Fig 2c heatmap. make zero and not detected grey manually
+pdf("~/Documents/Pubs/Fig2c_relative_abundance_transect.pdf")
+data %>%
+ggplot(aes(year, name, fill= prop_d)) + 
+  geom_tile(color = "black")+
+  scale_fill_gradient(low="black", high="#f3766e") +
+  coord_equal()+
+  theme(axis.text.x = element_text(angle = 45,  hjust = 1, size=5))
