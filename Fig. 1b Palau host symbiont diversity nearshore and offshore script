@@ -3,17 +3,25 @@ library(ggplot2)
 library(dplyr)
 library(tidyr)
 
+
 df <- read.csv("Palau_symbiont_diversity_data.csv")
+
+library(tidyverse)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+
+df <- read.csv(file.choose())
 
 df_horizontal <- df %>%
   filter(`Symbiont.transmission.mode` == "Horizontal")
 
 
-# Create a new column 'Symbiont_category' 
+# Create a new column 'Symbiont_category' based on the conditions and exclude undescribed Durusdinium spp.
 modified_df <- df_horizontal %>%
+  filter(!`Dominant.symbiont.species` %in% c("Durusdinium undescribed spp. (ITS2 type D4-5)", "Durusdinium undescribed spp.")) %>%
   mutate(Symbiont.category = case_when(
     `Dominant.symbiont.species` == "Durusdinium trenchii" ~ "Durusdinium trenchii",
-   # `Dominant symbiont species` == "Durusdinium undecribed spp (ITS2 type D4-5)" ~ "Durusdinium undecribed spp (ITS2 type D4-5)",
     TRUE ~ "Cladocopium spp."  # For all other cases
   ))
 
@@ -22,27 +30,20 @@ head(modified_df)
 
 # Create a summary table with counts per group (Location, Host genus or family, Dominant symbiont species)
 summary_table <- modified_df %>%
-  group_by(`Nearshore.or.offshore`, `Host.genus`, `Symbiont.category`) %>%
+  group_by(`Nearshore.or.offshore`, `Host.family`, `Symbiont.category`) %>%
   summarize(Sample_count = n(), .groups = 'drop')
 
 # Reshape the table to have Dominant symbiont species as columns
 summary_table_wide <- summary_table %>%
   pivot_wider(names_from = `Symbiont.category`, values_from = Sample_count, values_fill = list(Sample_count = 0))
 
-arrange(summary_table_wide, 'Host.genus', 'Nearshore.or.offshore')
-# View the transformed table (supplemental table)
+arrange(summary_table_wide, 'Host.family', 'Nearshore.or.offshore')
 
 print(summary_table_wide)
 
-# Pivot longer to get symbiont species as a variable and Sample_count as the value, remove any rows where there are no samples
-summary_table_long <- summary_table_wide %>%
-  pivot_longer(cols = starts_with("Durusdinium") | starts_with("Cladocopium"), 
-               names_to = "Dominant.symbiont.species", 
-               values_to = "Sample_count") %>%
-  filter(!is.na(Sample_count))  
-
-# Create the stacked bar plot of dominant symbiont faceted by location with coral family on the x-axis
-ggplot(summary_table_long, aes(x = `Host.genus`, y = Sample_count, fill = `Dominant.symbiont.species`)) +
+# Create the stacked bar plot with Host family on the x-axis
+ggplot(summary_table_long, aes(x = `Host.family`, y = Sample_count, 
+                               fill = factor(`Dominant.symbiont.species`, levels = c("Cladocopium spp.", "Durusdinium trenchii")))) +
   geom_bar(stat = "identity", position = "stack") +  # Stacked bar plot
   facet_wrap(~ `Nearshore.or.offshore`, scales = "free_y") +  # Facet by Nearshore/Offshore
   scale_fill_manual(values = c("Cladocopium spp." = "#1dbdc2", "Durusdinium trenchii" = "#f3776d")) +
@@ -56,7 +57,5 @@ ggplot(summary_table_long, aes(x = `Host.genus`, y = Sample_count, fill = `Domin
     axis.text.x = element_text(angle = 45, hjust = 1),  # Rotate x-axis labels for readability
     legend.position = "bottom"  # Move the legend to the bottom
   ) +
-  coord_cartesian(ylim = c(0, 40))  
-# Limit the y-axis to 40 make differences clearer, and manually correct the axis break to 100.
-
-  )
+  geom_bar(stat = "identity", position = position_stack(reverse = TRUE)) + 
+  coord_cartesian(ylim = c(0, 40))   # Limit the y-axis to 40 to make differences clearer
