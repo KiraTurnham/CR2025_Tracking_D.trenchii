@@ -41,21 +41,33 @@ arrange(summary_table_wide, 'Host.family', 'Nearshore.or.offshore')
 
 print(summary_table_wide)
 
-# Create the stacked bar plot with Host family on the x-axis
-ggplot(summary_table_long, aes(x = `Host.family`, y = Sample_count, 
+# Pivot longer to get symbiont species as a variable and Sample_count as value
+summary_table_long <- summary_table_wide %>%
+  pivot_longer(cols = starts_with("Durusdinium") | starts_with("Cladocopium"), 
+               names_to = "Dominant.symbiont.species", 
+               values_to = "Sample_count") %>%
+  filter(!is.na(Sample_count))  # Remove any rows where there are no samples
+
+# Calculate proportions within each Host Family and Nearshore/Offshore group
+summary_table_long <- summary_table_long %>%
+  group_by(Host.family, Nearshore.or.offshore) %>%
+  mutate(Proportion = (Sample_count / sum(Sample_count))*100)
+
+#FIGURE 1b: Proportion of colonies sampled, stacked, by host family
+ggplot(summary_table_long, aes(x = `Host.family`, y = Proportion, 
                                fill = factor(`Dominant.symbiont.species`, levels = c("Cladocopium spp.", "Durusdinium trenchii")))) +
   geom_bar(stat = "identity", position = "stack") +  # Stacked bar plot
   facet_wrap(~ `Nearshore.or.offshore`, scales = "free_y") +  # Facet by Nearshore/Offshore
-  scale_fill_manual(values = c("Cladocopium spp." = "#1dbdc2", "Durusdinium trenchii" = "#f3776d")) +
+  scale_fill_manual(values = c("Cladocopium spp." = "#27aae1", "Durusdinium trenchii" = "#ed1c24")) +
   theme_minimal() +
   labs(
     x = "Host Family",  # Label for x-axis
-    y = "Sample Count",  # Label for y-axis
+    y = "Proportion of colonies sampled",  # Label for y-axis
     title = "Sample Counts by Host Family and Symbiont Species"
   ) +
   theme(
-    axis.text.x = element_text(angle = 45, hjust = 1),  # Rotate x-axis labels for readability
-    legend.position = "bottom"  # Move the legend to the bottom
+    axis.text.x = element_text(angle = 45, hjust = 1),  # Rotate x-axis labels
+    legend.position = "bottom"  
   ) +
   geom_bar(stat = "identity", position = position_stack(reverse = TRUE)) + 
-  coord_cartesian(ylim = c(0, 40))   # Limit the y-axis to 40 to make differences clearer
+  coord_cartesian(ylim = c(0, 100)) 
